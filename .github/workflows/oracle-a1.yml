@@ -1,0 +1,48 @@
+name: Oracle Always Free A1 hunter
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-a1-hunter
+  cancel-in-progress: false
+
+jobs:
+  try-a1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+      OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+      OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+      OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+      OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
+      OCI_SUBNET_OCID: ${{ secrets.OCI_SUBNET_OCID }}
+      OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify all seven secrets before any OCI request
+        run: |
+          python - <<'PY'
+          import os
+          names = ('OCI_TENANCY_OCID', 'OCI_USER_OCID', 'OCI_FINGERPRINT',
+                   'OCI_PRIVATE_KEY', 'OCI_COMPARTMENT_OCID', 'OCI_SUBNET_OCID',
+                   'OCI_SSH_PUBLIC_KEY')
+          missing = [name for name in names if not os.environ.get(name, '').strip()]
+          if missing:
+              print('Missing secrets: ' + ', '.join(missing) + '; no OCI request made.')
+              raise SystemExit(1)
+          print('All seven secrets are set.')
+          PY
+      - name: Install OCI SDK 2.x
+        run: python -m pip install 'oci>=2,<3'
+      - name: Try existing A1 capacity
+        run: python scripts/oracle_a1_hunter.py
