@@ -1,8 +1,6 @@
 name: Oracle Always Free A1 hunter
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
